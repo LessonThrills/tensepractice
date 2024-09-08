@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Tenses With LessonThrills</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f4f4f4;
+        }
+        h1 {
+            font-size: 3em;
+            color: #fff;
+            text-shadow: 2px 2px 4px #000000;
+            animation: fadeIn 2s ease-in-out infinite alternate;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        .gradient-box {
+            background: linear-gradient(to right, #FF512F, #DD2476);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            width: 50%;
+            color: #fff;
+        }
+        .gradient-button {
+            background: linear-gradient(to right, #56CCF2, #2F80ED);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .error-message {
+            color: red;
+        }
+        .question-box, .answer-box {
+            background: linear-gradient(to right, #FF512F, #F09819);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px auto;
+            width: 60%;
+            color: #fff;
+        }
+        .options-box {
+            background: linear-gradient(to right, #11998E, #38EF7D);
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px auto;
+            width: 40%;
+        }
+        .selected {
+            border: 2px solid #fff;
+        }
+        .correct {
+            background-color: green;
+        }
+        .wrong {
+            background-color: red;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Learn Tenses With LessonThrills</h1>
+
+    <!-- Number of Questions Input -->
+    <div class="gradient-box">
+        <label for="numQuestions">Enter the number of questions (0-100): </label>
+        <input type="number" id="numQuestions" min="0" max="100">
+        <div id="errorNum" class="error-message"></div>
+    </div>
+
+    <!-- Choose Level -->
+    <div class="gradient-box">
+        <label for="level">Choose the level of question:</label><br>
+        <select id="level">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+            <option value="mix">Mix</option>
+        </select>
+    </div>
+
+    <!-- Start Button -->
+    <button id="startBtn" class="gradient-button">Start</button>
+
+    <!-- Question Area -->
+    <div id="questionArea" class="hidden">
+        <div class="question-box" id="questionBox"></div>
+        <div id="answersBox"></div>
+        <div class="gradient-box">
+            <button id="prevBtn" class="gradient-button">Previous</button>
+            <button id="nextBtn" class="gradient-button">Next</button>
+            <button id="submitBtn" class="gradient-button">Submit</button>
+            <button id="soundBtn" class="gradient-button">🔇 Mute</button>
+        </div>
+        <div id="timer" class="gradient-box"></div>
+    </div>
+
+    <!-- Score Box -->
+    <div id="scoreArea" class="hidden gradient-box">
+        <h2>Your Score:</h2>
+        <div id="score"></div>
+        <div id="timeTaken"></div>
+        <div id="feedback"></div>
+    </div>
+
+    <script>
+        // Variables to hold question data
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let selectedAnswers = [];
+        let timerInterval;
+        let soundOn = false;
+
+        // Load questions from file
+        function loadQuestions() {
+            return fetch('question.txt')
+                .then(response => response.text())
+                .then(text => {
+                    const allQuestions = text.split('\n').map(q => q.trim());
+                    const easy = allQuestions.slice(0, 100);
+                    const medium = allQuestions.slice(100, 200);
+                    const hard = allQuestions.slice(200, 300);
+                    return { easy, medium, hard };
+                });
+        }
+
+        // Start the quiz
+        document.getElementById('startBtn').onclick = function () {
+            let numQuestions = parseInt(document.getElementById('numQuestions').value, 10);
+            let errorNum = document.getElementById('errorNum');
+            if (isNaN(numQuestions) || numQuestions < 0 || numQuestions > 100) {
+                errorNum.innerText = 'Please enter a valid number between 0 and 100.';
+                return;
+            } else {
+                errorNum.innerText = ''; // Clear the error message
+            }
+
+            // Fetch the questions and filter based on the user's selection
+            loadQuestions().then(data => {
+                let level = document.getElementById('level').value;
+                if (level === 'mix') {
+                    questions = [...data.easy, ...data.medium, ...data.hard];
+                } else {
+                    questions = data[level];
+                }
+                questions = questions.slice(0, numQuestions);
+                if (questions.length === 0) {
+                    errorNum.innerText = 'No questions available for this selection.';
+                    return;
+                }
+
+                // Show the question area and hide the setup
+                document.getElementById('questionArea').classList.remove('hidden');
+                document.getElementById('startBtn').classList.add('hidden');
+
+                showQuestion();
+                startTimer();
+            }).catch(error => {
+                console.error('Error loading questions:', error);
+                errorNum.innerText = 'Failed to load questions. Please try again later.';
+            });
+        };
+
+        // Show the current question
+        function showQuestion() {
+            document.getElementById('questionBox').innerText = questions[currentQuestionIndex];
+            // Mock options (You would have real answers from the question data)
+            let answers = ['Option 1', 'Option 2', 'Option 3', 'Option 4']; 
+            let answersBox = document.getElementById('answersBox');
+            answersBox.innerHTML = '';
+            answers.forEach((answer, i) => {
+                let answerDiv = document.createElement('div');
+                answerDiv.className = 'options-box';
+                answerDiv.innerText = answer;
+                answerDiv.onclick = () => selectAnswer(i);
+                answersBox.appendChild(answerDiv);
+            });
+        }
+
+        // Select an answer
+        function selectAnswer(i) {
+            let answersBox = document.getElementById('answersBox').children;
+            [...answersBox].forEach((answerDiv, index) => {
+                answerDiv.classList.remove('selected');
+                if (index === i) {
+                    answerDiv.classList.add('selected');
+                    selectedAnswers[currentQuestionIndex] = i;
+                }
+            });
+        }
+
+        // Timer function
+        function startTimer() {
+            let timer = 0;
+            document.getElementById('timer').innerText = 'Time: 0 sec';
+            timerInterval = setInterval(() => {
+                timer++;
+                document.getElementById('timer').innerText = Time: ${timer} sec;
+            }, 1000);
+        }
+
+        // Sound toggle
+        document.getElementById('soundBtn').onclick = function () {
+            soundOn = !soundOn;
+            document.getElementById('soundBtn').innerText = soundOn ? '🔊 Sound' : '🔇 Mute';
+            if (soundOn) {
+                let speech = new SpeechSynthesisUtterance(questions[currentQuestionIndex]);
+                window.speechSynthesis.speak(speech);
+            } else {
+                window.speechSynthesis.cancel();
+            }
+        };
+
+        // Navigation between questions
+        document.getElementById('nextBtn').onclick = function () {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion();
+            }
+        };
+        document.getElementById('prevBtn').onclick = function () {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion();
+            }
+        };
+
+        // Submit and show results
+        document.getElementById('submitBtn').onclick = function () {
+            clearInterval(timerInterval);
+            document.getElementById('questionArea').classList.add('hidden');
+            document.getElementById('scoreArea').classList.remove('hidden');
+            
+            // Calculate the score (assuming the correct answer is always the third option for simplicity)
+            let score = selectedAnswers.reduce((acc, answer) => acc + (answer === 2 ? 1 : 0), 0); // Mock correct answer index as 2
+            document.getElementById('score').innerText = Score: ${score}/${questions.length};
+            
+            // Display the time taken
+            let timeTaken = document.getElementById('timer').innerText;
+            document.getElementById('timeTaken').innerText = Time taken: ${timeTaken};
+            
+            // Provide feedback based on the score
+            document.getElementById('feedback').innerText = score > (questions.length / 2) ? 'Great job!' : 'Keep practicing!';
+        };
+    </script>
+
+</body>
+</html>
