@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Tenses With LessonThrills</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .heading {
+            font-size: 3em;
+            font-weight: bold;
+            animation: headingAnimation 2s infinite;
+            background: linear-gradient(to right, #ff512f, #dd2476);
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        @keyframes headingAnimation {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .input-box, .start-box, .result-box {
+            padding: 20px;
+            margin: 10px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+        }
+        .input-box input {
+            padding: 10px;
+            width: 90%;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .input-box select {
+            padding: 10px;
+            width: 90%;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .btn, .submit-btn {
+            padding: 10px 20px;
+            background: linear-gradient(to right, #ff512f, #dd2476);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:disabled, .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .question-box {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .question, .answers {
+            margin: 10px 0;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            padding: 10px;
+            border-radius: 5px;
+            width: 90%;
+            text-align: center;
+        }
+        .answers div {
+            margin: 5px 0;
+            padding: 10px;
+            background: linear-gradient(to right, #ff512f, #dd2476);
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .answers div.correct {
+            background-color: green;
+        }
+        .answers div.wrong {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="heading">Learn Tenses With LessonThrills</div>
+
+    <div class="input-box">
+        <label>Enter the number of questions (0-100):</label><br>
+        <input type="number" id="numQuestions" min="1" max="100">
+        <p id="error-msg" style="color:red;"></p>
+        <label>Choose the level of questions:</label><br>
+        <select id="questionLevel">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+            <option value="mix">Mix</option>
+        </select><br>
+        <button class="btn" id="startBtn">Start</button>
+    </div>
+
+    <div class="question-box" id="questionBox">
+        <div class="question" id="currentQuestion">Question will appear here</div>
+        <div class="answers" id="answerOptions">
+            <!-- Answer options will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+        let currentQuestionIndex = 0;
+
+        // Load and parse the questions.txt file
+        async function loadQuestions(level) {
+            let response = await fetch('questions.txt'); // Ensure this file is in the same directory
+            let data = await response.text();
+
+            // Split into sections
+            let easyQuestions = data.split("# Easy Questions")[1].split("# Medium Questions")[0].trim();
+            let mediumQuestions = data.split("# Medium Questions")[1].split("# Hard Questions")[0].trim();
+            let hardQuestions = data.split("# Hard Questions")[1].trim();
+
+            // Select questions based on the selected level
+            let selectedQuestions;
+            if (level === 'easy') {
+                selectedQuestions = easyQuestions.split('\n\n');
+            } else if (level === 'medium') {
+                selectedQuestions = mediumQuestions.split('\n\n');
+            } else if (level === 'hard') {
+                selectedQuestions = hardQuestions.split('\n\n');
+            } else {
+                selectedQuestions = [...easyQuestions.split('\n\n'), ...mediumQuestions.split('\n\n'), ...hardQuestions.split('\n\n')];
+            }
+
+            // Parse each question and store it
+            questions = selectedQuestions.map(q => {
+                let lines = q.split('\n');
+                return {
+                    question: lines[0],
+                    options: [lines[1], lines[2], lines[3], lines[4]],
+                    correctAnswer: lines[5].replace('Answer: ', '').trim(),
+                    explanation: lines[6].replace('Explanation: ', '').trim()
+                };
+            });
+
+            displayQuestion();
+        }
+
+        // Display the current question and answer options
+        function displayQuestion() {
+            let current = questions[currentQuestionIndex];
+            document.getElementById('currentQuestion').innerText = current.question;
+            let answerOptions = document.getElementById('answerOptions');
+            answerOptions.innerHTML = '';  // Clear previous options
+
+            current.options.forEach((option, index) => {
+                let optionDiv = document.createElement('div');
+                optionDiv.innerText = option;
+                optionDiv.onclick = () => handleAnswer(optionDiv, current.correctAnswer, current.explanation);
+                answerOptions.appendChild(optionDiv);
+            });
+        }
+
+        // Handle user's answer
+        function handleAnswer(optionDiv, correctAnswer, explanation) {
+            let selectedAnswer = optionDiv.innerText[0]; // Get the letter of the selected option (e.g., 'a', 'b', etc.)
+            
+            if (selectedAnswer === correctAnswer) {
+                optionDiv.classList.add('correct');
+                alert(`Correct! ${explanation}`);
+            } else {
+                optionDiv.classList.add('wrong');
+                alert(`Incorrect. ${explanation}`);
+            }
+        }
+
+        // Start the quiz when the Start button is clicked
+        document.getElementById('startBtn').addEventListener('click', function () {
+            let numQuestions = document.getElementById('numQuestions').value;
+            let questionLevel = document.getElementById('questionLevel').value;
+
+            if (numQuestions < 1 || numQuestions > 100) {
+                document.getElementById('error-msg').innerText = "Please enter a valid number of questions (0-100).";
+                return;
+            }
+
+            loadQuestions(questionLevel);  // Load questions based on the selected level
+            document.querySelector('.input-box').style.display = 'none';
+            document.getElementById('questionBox').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
